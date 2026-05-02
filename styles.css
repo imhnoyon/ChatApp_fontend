@@ -608,7 +608,7 @@ body.light-theme .messages-container {
     outline: none;
 }
 
-.footer-icon {
+.footer-icon { user-select: none; -webkit-user-select: none;
     background: none;
     border: none;
     color: #aebac1;
@@ -678,9 +678,9 @@ body.light-theme .messages-container {
     cursor: pointer;
 }
 
-.msg-audio {
+.msg-audio { display: block; margin: 4px 0;
     width: 220px;
-    height: 36px;
+    height: 54px;
     border-radius: 20px;
 }
 

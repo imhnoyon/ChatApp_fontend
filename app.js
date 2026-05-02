@@ -18,7 +18,7 @@ const state = {
     audioChunks: [],
     searchTerm: "",
     typingTimer: null,
-    reconnectAttempts: 0,
+    reconnectAttempts: 0, isRecordingRequested: false,
     theme: localStorage.getItem("chat_theme") || "dark",
 };
 
@@ -365,13 +365,14 @@ function appendMessage(m) {
     const time = formatMessageTime(m.created_at || m.time);
     let fileUrl = m.file;
     if (fileUrl && !fileUrl.startsWith("http") && !fileUrl.startsWith("blob:")) {
-        fileUrl = state.apiBase + fileUrl;
+        const separator = (state.apiBase.endsWith("/") || fileUrl.startsWith("/")) ? "" : "/";
+        fileUrl = state.apiBase + separator + fileUrl;
     }
     let contentHtml = "";
     if (m.message_type === "image") {
         contentHtml = `<img src="${fileUrl}" class="msg-image" ${m.optimistic ? 'style="opacity:0.6"' : `onclick="window.open('${fileUrl}', '_blank')"`} />`;
     } else if (m.message_type === "voice") {
-        contentHtml = `<audio src="${fileUrl}" controls class="msg-audio"></audio>`;
+        contentHtml = `<audio controls class="msg-audio" preload="auto"><source src="${fileUrl}">Your browser does not support audio. <a href="${fileUrl}" target="_blank" style="color:var(--brand-light);font-size:0.7rem;">Download</a></audio>`;
     } else {
         contentHtml = `<div class="msg-text">${escapeHtml(m.text || "")}</div>`;
     }
@@ -463,16 +464,16 @@ async function onImageSelect(e) {
     }
 }
 
-async function startVoiceRecording() {
+async function startVoiceRecording() { state.isRecordingRequested = true;
     if (!state.activeConversationId) return;
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); if (!state.isRecordingRequested) { stream.getTracks().forEach(t => t.stop()); return; }
         state.mediaRecorder = new MediaRecorder(stream);
         state.audioChunks = [];
-        state.mediaRecorder.ondataavailable = (e) => state.audioChunks.push(e.data);
+        state.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) state.audioChunks.push(e.data); };
         state.mediaRecorder.onstop = async () => {
-            if (state.audioChunks.length === 0) return;
-            const blob = new Blob(state.audioChunks, { type: "audio/ogg" });
+            if (state.audioChunks.length === 0) { toast("Recording failed: no data", true); return; }
+            const blob = new Blob(state.audioChunks, { type: state.mediaRecorder.mimeType || "audio/webm" });
             const tempUrl = URL.createObjectURL(blob);
             appendMessage({
                 id: 0,
@@ -485,7 +486,7 @@ async function startVoiceRecording() {
             });
             scrollToBottom();
             const formData = new FormData();
-            formData.append("file", blob, "voice.ogg");
+            formData.append("file", blob, "voice.webm");
             formData.append("message_type", "voice");
             try { await uploadFile(formData); } catch (err) {
                 toast(err.message, true);
@@ -494,7 +495,7 @@ async function startVoiceRecording() {
             }
             stream.getTracks().forEach(t => t.stop());
         };
-        state.mediaRecorder.start();
+        state.mediaRecorder.start(500);
         el.voiceBtn.style.color = "#f44336";
         el.voiceBtn.classList.add("recording");
         toast("Recording...");
@@ -502,7 +503,7 @@ async function startVoiceRecording() {
     } catch (err) { toast("Microphone access denied", true); }
 }
 
-function stopVoiceRecording() {
+function stopVoiceRecording() { state.isRecordingRequested = false;
     if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
         state.mediaRecorder.stop();
         el.voiceBtn.style.color = "";
