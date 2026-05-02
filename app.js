@@ -572,9 +572,12 @@ async function uploadFile(formData) {
 
 function formatMessageTime(value) {
     if (!value) return "";
-    const date = new Date(value);
+    let date = new Date(value);
+    if (isNaN(date.getTime()) && typeof value === "string" && !value.endsWith("Z")) {
+        date = new Date(value + "Z");
+    }
     if (isNaN(date.getTime())) return String(value);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false }) + " (UTC)";
 }
 
 function onMessagesScroll() {
