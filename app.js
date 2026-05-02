@@ -577,7 +577,7 @@ function formatMessageTime(value) {
         date = new Date(value + "Z");
     }
     if (isNaN(date.getTime())) return String(value);
-    return date.toLocaleTimeString("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false }) + " (UTC)";
+    return date.toLocaleTimeString("en-GB", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false }) + " GMT";
 }
 
 function onMessagesScroll() {
