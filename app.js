@@ -18,7 +18,8 @@ const state = {
     audioChunks: [],
     searchTerm: "",
     typingTimer: null,
-    reconnectAttempts: 0, isRecordingRequested: false,
+    reconnectAttempts: 0,
+    isRecordingRequested: false,
     theme: localStorage.getItem("chat_theme") || "dark",
 };
 
@@ -98,14 +99,9 @@ function toggleTheme() {
 function applyTheme() {
     const isLight = state.theme === "light";
     document.body.classList.toggle("light-theme", isLight);
-    
-    // Update icon
     if (isLight) {
-        // Sun icon for light mode (meaning click to go dark) -> wait, usually it's current mode icon or next mode icon.
-        // Let's show current mode icon.
         el.themeIcon.innerHTML = '<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>';
     } else {
-        // Moon icon for dark mode
         el.themeIcon.innerHTML = '<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>';
     }
 }
@@ -464,16 +460,52 @@ async function onImageSelect(e) {
     }
 }
 
+// ─── FIXED: Voice Recording with proper MIME type detection ───────────────────
+function getBestAudioMimeType() {
+    const types = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/ogg",
+        "audio/mp4",
+    ];
+    for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return ""; // fallback: let browser decide
+}
+
+function mimeTypeToExtension(mimeType) {
+    if (mimeType.includes("ogg")) return "ogg";
+    if (mimeType.includes("mp4")) return "mp4";
+    return "webm"; // default
+}
+
 async function startVoiceRecording() {
     if (!state.activeConversationId) return;
+    if (state.isRecordingRequested) return;
+    state.isRecordingRequested = true;
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        state.mediaRecorder = new MediaRecorder(stream);
+
+        const mimeType = getBestAudioMimeType();
+        state.mediaRecorder = mimeType
+            ? new MediaRecorder(stream, { mimeType })
+            : new MediaRecorder(stream);
+
         state.audioChunks = [];
-        state.mediaRecorder.ondataavailable = (e) => state.audioChunks.push(e.data);
+        state.mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) state.audioChunks.push(e.data);
+        };
+
         state.mediaRecorder.onstop = async () => {
+            state.isRecordingRequested = false;
             if (state.audioChunks.length === 0) return;
-            const blob = new Blob(state.audioChunks, { type: "audio/ogg" });
+
+            const usedMime = state.mediaRecorder.mimeType || mimeType || "audio/webm";
+            const ext = mimeTypeToExtension(usedMime);
+            const blob = new Blob(state.audioChunks, { type: usedMime });
+
             const tempUrl = URL.createObjectURL(blob);
             appendMessage({
                 id: 0,
@@ -485,22 +517,35 @@ async function startVoiceRecording() {
                 optimistic: true
             });
             scrollToBottom();
+
             const formData = new FormData();
-            formData.append("file", blob, "voice.ogg");
+            formData.append("file", blob, `voice.${ext}`);
             formData.append("message_type", "voice");
-            try { await uploadFile(formData); } catch (err) {
+
+            try {
+                await uploadFile(formData);
+            } catch (err) {
                 toast(err.message, true);
                 const opt = el.messagesBox.querySelector(".message.optimistic");
                 if (opt) opt.remove();
             }
             stream.getTracks().forEach(t => t.stop());
         };
-        state.mediaRecorder.start();
+
+        state.mediaRecorder.start(250); // collect chunks every 250ms for reliability
         el.voiceBtn.style.color = "#f44336";
         el.voiceBtn.classList.add("recording");
         toast("Recording...");
-        setTimeout(() => { if (state.mediaRecorder?.state === "recording") stopVoiceRecording(); }, 60000);
-    } catch (err) { toast("Microphone access denied", true); }
+
+        // Auto-stop after 60 seconds
+        setTimeout(() => {
+            if (state.mediaRecorder?.state === "recording") stopVoiceRecording();
+        }, 60000);
+
+    } catch (err) {
+        state.isRecordingRequested = false;
+        toast("Microphone access denied", true);
+    }
 }
 
 function stopVoiceRecording() {
@@ -509,8 +554,11 @@ function stopVoiceRecording() {
         el.voiceBtn.style.color = "";
         el.voiceBtn.classList.remove("recording");
         toast("Sending voice message...");
+    } else {
+        state.isRecordingRequested = false;
     }
 }
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function uploadFile(formData) {
     const res = await fetch(`${state.apiBase}/api/conversations/${state.activeConversationId}/upload/`, {
