@@ -470,16 +470,19 @@ async function saveEdit(row, m, newText, originalContent) {
         return;
     }
 
+    // Try with /api prefix first, as it is standard for this app
+    let url = `/api/conversations/${state.activeConversationId}/messages/${m.id}/edit/`;
+
     try {
-        const data = await apiCall(`/api/conversations/${state.activeConversationId}/messages/${m.id}/edit/`, {
+        const data = await apiCall(url, {
             method: "PATCH",
             body: JSON.stringify({ text: newText })
         });
-        
+
         // Update local object
         m.text = data.text || newText;
         m.is_edited = true;
-        
+
         // Update UI
         wrapper.innerHTML = `<div class="msg-text">${escapeHtml(m.text)}</div>`;
         const meta = row.querySelector(".msg-meta");
@@ -697,7 +700,10 @@ async function apiCall(path, options = {}) {
     if (!options.noAuth && state.access) headers.Authorization = `Bearer ${state.access}`;
     const res = await fetch(`${state.apiBase}${path}`, { method: options.method || "GET", headers, body: options.body });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.detail || data.error || "Request failed");
+    if (!res.ok) {
+        const msg = data.detail || data.error || data.message || "Request failed";
+        throw new Error(`${msg} (Status: ${res.status})`);
+    }
     return data;
 }
 
