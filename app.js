@@ -84,6 +84,10 @@ function bindEvents() {
     el.userSearch.addEventListener("input", (e) => { state.searchTerm = e.target.value.toLowerCase(); renderChats(); });
     el.themeToggle.addEventListener("click", toggleTheme);
     if (el.newChatBtn) el.newChatBtn.addEventListener("click", toggleNewChatPanel);
+    document.getElementById("voiceCallBtn")?.addEventListener("click", () =>
+        toast("🎙️ Voice call — Coming soon! We're working on it."));
+    document.getElementById("videoCallBtn")?.addEventListener("click", () =>
+        toast("📹 Video call — Coming soon! We're working on it."));
 }
 
 function toggleNewChatPanel() {
