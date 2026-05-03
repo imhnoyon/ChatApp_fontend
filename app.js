@@ -1,4 +1,5 @@
 const DEFAULT_API_BASE = "https://rs0hfx59-8003.asse.devtunnels.ms";
+const PROFILE_ME_PATHS = ["/auth/me/", "/api/auth/me/"];
 
 const state = {
     apiBase: localStorage.getItem("chat_api_base") || DEFAULT_API_BASE,
@@ -84,6 +85,7 @@ function bindEvents() {
     el.userSearch.addEventListener("input", (e) => { state.searchTerm = e.target.value.toLowerCase(); renderChats(); });
     el.themeToggle.addEventListener("click", toggleTheme);
     el.myAvatar.addEventListener("click", triggerProfilePicturePicker);
+    el.myUsername?.addEventListener("click", onEditProfile);
     if (el.newChatBtn) el.newChatBtn.addEventListener("click", toggleNewChatPanel);
     document.getElementById("voiceCallBtn")?.addEventListener("click", () =>
         toast("🎙️ Voice call — Coming soon! We're working on it."));
@@ -907,10 +909,8 @@ function ensureProfilePictureInput() {
 async function onProfilePictureSelected(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append("profile_picture", file);
     try {
-        const updated = await patchMyProfile(formData);
+        const updated = await patchMyProfileImage(file);
         state.me = updated?.data || updated;
         persistAuth();
         updateMePanel();
@@ -924,14 +924,90 @@ async function onProfilePictureSelected(event) {
 }
 
 async function getMyProfile() {
-    return await apiCallWithFallback(["/api/auth/me/", "/api/auth/me/"]);
+    return await apiCallWithFallback(PROFILE_ME_PATHS);
 }
 
-async function patchMyProfile(formData) {
-    return await apiCallFormWithFallback(["/api/auth/me/", "/api/auth/me/"], {
-        method: "PATCH",
+async function patchMyProfileForm(formData, method = "PATCH") {
+    return await apiCallFormWithFallback(PROFILE_ME_PATHS, {
+        method,
         body: formData
     });
+}
+
+async function patchMyProfileJson(payload, method = "PATCH") {
+    return await apiCallWithFallback(PROFILE_ME_PATHS, {
+        method,
+        body: JSON.stringify(payload)
+    });
+}
+
+async function patchMyProfileImage(file) {
+    const fieldCandidates = ["avatar"];
+    const methods = ["PATCH",];
+    let lastError = null;
+
+    for (const method of methods) {
+        for (const fieldName of fieldCandidates) {
+            const formData = new FormData();
+            formData.append(fieldName, file);
+            try {
+                return await patchMyProfileForm(formData, method);
+            } catch (e) {
+                lastError = e;
+                if (!isValidationError(e)) throw e;
+            }
+        }
+    }
+
+    throw lastError || new Error("Could not update profile picture");
+}
+
+async function onEditProfile() {
+    if (!state.me) return;
+
+    const currentFullName = state.me.full_name || "";
+    const currentEmail = state.me.email || "";
+    const currentUsername = state.me.username || "";
+
+    const full_name = window.prompt("Full name", currentFullName);
+    if (full_name === null) return;
+    const email = window.prompt("Email", currentEmail);
+    if (email === null) return;
+    const username = window.prompt("Username", currentUsername);
+    if (username === null) return;
+
+    const payload = {};
+    if (full_name.trim() !== currentFullName) payload.full_name = full_name.trim();
+    if (email.trim() !== currentEmail) payload.email = email.trim();
+    if (username.trim() !== currentUsername) payload.username = username.trim();
+
+    if (Object.keys(payload).length === 0) {
+        toast("No profile changes");
+        return;
+    }
+
+    try {
+        let updated = null;
+        try {
+            updated = await patchMyProfileJson(payload, "PATCH");
+        } catch (e) {
+            if (!isValidationError(e)) throw e;
+            updated = await patchMyProfileJson(payload, "PUT");
+        }
+
+        state.me = updated?.data || updated;
+        persistAuth();
+        updateMePanel();
+        loadChats();
+        toast("Profile updated");
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+function isValidationError(error) {
+    const message = String(error?.message || "");
+    return message.includes("Status: 400") || message.includes("Status: 405") || message.includes("Status: 422");
 }
 
 async function apiCallWithFallback(paths, options = {}) {
