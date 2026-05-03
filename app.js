@@ -50,6 +50,7 @@ const el = {
     userSearch: document.getElementById("userSearch"),
     themeToggle: document.getElementById("themeToggle"),
     themeIcon: document.getElementById("themeIcon"),
+    newChatBtn: document.getElementById("newChatBtn"),
 };
 
 init();
@@ -80,6 +81,7 @@ function bindEvents() {
     el.voiceBtn.addEventListener("touchend", (e) => { e.preventDefault(); stopVoiceRecording(); });
     el.userSearch.addEventListener("input", (e) => { state.searchTerm = e.target.value.toLowerCase(); renderChats(); });
     el.themeToggle.addEventListener("click", toggleTheme);
+    if (el.newChatBtn) el.newChatBtn.addEventListener("click", () => loadAllUsers());
 }
 
 function toggleAuthForm(mode) {
@@ -154,7 +156,14 @@ async function onRegister(event) {
         toast("Account created! Please login.");
         toggleAuthForm("login");
     } catch (e) {
-        toast(e.message, true);
+        let msg = e.message;
+        // Check for common 'already exists' error patterns
+        if (msg.toLowerCase().includes("exists") || msg.toLowerCase().includes("unique") || msg.includes("400")) {
+            if (msg.includes("username") || msg.includes("already")) {
+                msg = "User already exists with this username or email.";
+            }
+        }
+        toast(msg, true);
     }
 }
 
@@ -182,8 +191,45 @@ async function loadChats(options = {}) {
         const data = await apiCall("/api/conversations/");
         state.chats = Array.isArray(data) ? data : (data?.data || []);
         renderChats();
+        if (state.chats.length === 0) loadAllUsers(); // Show all users if no conversations
         if (options.restoreSelection && state.activeUserId) restoreSelection();
     } catch (e) { toast(e.message, true); }
+}
+
+async function loadAllUsers() {
+    if (!state.access) return;
+    try {
+        const data = await apiCall("/api/auth/users/"); // Assuming this is the endpoint
+        const users = Array.isArray(data) ? data : (data?.data || []);
+        renderAllUsers(users);
+    } catch (e) { 
+        // Fallback to searching if users/ fails
+        toast("Could not load users list. Use search to find people.", true);
+    }
+}
+
+function renderAllUsers(users) {
+    el.usersList.innerHTML = `<div class="list-label">All Users</div>`;
+    users.forEach(user => {
+        if (user.id === state.me?.id) return;
+        const initials = (user.full_name || user.username).substring(0, 1).toUpperCase();
+        const row = document.createElement("button");
+        row.className = "conv-item";
+        row.innerHTML = `
+            <div class="avatar">${escapeHtml(initials)}</div>
+            <div class="conv-info">
+                <div class="conv-name">${escapeHtml(user.full_name || user.username)}</div>
+                <div class="conv-bottom"><div class="conv-msg">Click to start chat</div></div>
+            </div>
+        `;
+        row.onclick = () => {
+            // Find if conversation exists
+            const existing = state.chats.find(c => c.other_user?.id === user.id);
+            if (existing) openConversation(existing.id, user);
+            else openConversation(0, user, { isNew: true });
+        };
+        el.usersList.appendChild(row);
+    });
 }
 
 function renderChats() {
@@ -234,18 +280,27 @@ async function openConversation(convId, user, options = {}) {
     state.activeConversationId = convId;
     localStorage.setItem("chat_selected_user_id", String(user.id));
     localStorage.setItem("chat_conv_id", String(convId));
-    const chatIdx = state.chats.findIndex(c => c.id === convId);
-    if (chatIdx !== -1) {
-        state.chats[chatIdx].unread_count = 0;
-        renderChats();
+    
+    if (convId !== 0) {
+        const chatIdx = state.chats.findIndex(c => c.id === convId);
+        if (chatIdx !== -1) {
+            state.chats[chatIdx].unread_count = 0;
+            renderChats();
+        }
     }
+    
     if (window.innerWidth <= 800) el.shell.classList.add("chat-open");
     el.chatWithTitle.textContent = user.full_name || user.username;
     el.onlineStatus.textContent = "offline";
     el.onlineStatus.classList.remove("online");
     el.chatAvatar.textContent = (user.full_name || user.username).substring(0, 1).toUpperCase();
-    if (!options.restore) await loadMessages(convId);
-    connectSocket(convId);
+    
+    if (convId === 0) {
+        el.messagesBox.innerHTML = `<div class="welcome-screen"><p>Say hi to ${escapeHtml(user.full_name || user.username)}!</p></div>`;
+    } else {
+        if (!options.restore) await loadMessages(convId);
+        connectSocket(convId);
+    }
 }
 
 async function loadMessages(convId) {
@@ -329,10 +384,28 @@ function handleSocketPayload(p) {
     }
 }
 
-function onSendMessage(e) {
+async function onSendMessage(e) {
     e.preventDefault();
     const text = el.messageInput.value.trim();
-    if (!text || state.socket?.readyState !== WebSocket.OPEN) return;
+    if (!text) return;
+
+    // If it's a new conversation (no ID yet)
+    if (state.activeConversationId === 0) {
+        try {
+            const res = await apiCall(`/api/conversations/start/`, {
+                method: "POST",
+                body: JSON.stringify({ user_id: state.activeUserId, text: text })
+            });
+            el.messageInput.value = "";
+            openConversation(res.id || res.conversation_id, { id: state.activeUserId, username: el.chatWithTitle.textContent });
+            loadChats();
+        } catch (err) {
+            toast("Could not start conversation", true);
+        }
+        return;
+    }
+
+    if (state.socket?.readyState !== WebSocket.OPEN) return;
     const optimisticMsg = {
         id: Date.now(),
         sender_id: state.me.id,
