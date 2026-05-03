@@ -83,6 +83,7 @@ function bindEvents() {
     el.voiceBtn.addEventListener("touchend", (e) => { e.preventDefault(); stopVoiceRecording(); });
     el.userSearch.addEventListener("input", (e) => { state.searchTerm = e.target.value.toLowerCase(); renderChats(); });
     el.themeToggle.addEventListener("click", toggleTheme);
+    el.myAvatar.addEventListener("click", triggerProfilePicturePicker);
     if (el.newChatBtn) el.newChatBtn.addEventListener("click", toggleNewChatPanel);
     document.getElementById("voiceCallBtn")?.addEventListener("click", () =>
         toast("🎙️ Voice call — Coming soon! We're working on it."));
@@ -130,7 +131,7 @@ function applyTheme() {
 
 async function bootstrapSession() {
     try {
-        const meData = await apiCall("/api/auth/me/");
+        const meData = await getMyProfile();
         state.me = meData?.data || meData;
         persistAuth();
         updateMePanel();
@@ -149,7 +150,7 @@ async function onLogin(event) {
         const data = await apiCall("/api/auth/login/", { method: "POST", body: JSON.stringify(payload), noAuth: true });
         state.access = data?.access || data?.tokens?.access || "";
         state.refresh = data?.refresh || data?.tokens?.refresh || "";
-        state.me = data?.user || data?.data || null;
+        state.me = await getMyProfile().catch(() => data?.user || data?.data || null);
         persistAuth();
         updateMePanel();
         toast("Welcome back!");
@@ -181,7 +182,7 @@ async function onRegister(event) {
         });
         state.access = loginData?.access || loginData?.tokens?.access || "";
         state.refresh = loginData?.refresh || loginData?.tokens?.refresh || "";
-        state.me = loginData?.user || loginData?.data || null;
+        state.me = await getMyProfile().catch(() => loginData?.user || loginData?.data || null);
         persistAuth();
         updateMePanel();
         toast(`Welcome, ${username}! 🎉`);
@@ -261,19 +262,20 @@ function renderAllUsers(users) {
         return;
     }
     filtered.forEach(user => {
-        const initials = (user.full_name || user.username).substring(0, 1).toUpperCase();
+        const name = user.full_name || user.username || "?";
         const row = document.createElement("button");
         row.className = "conv-item";
         row.innerHTML = `
-            <div class="avatar">${escapeHtml(initials)}</div>
+            <div class="avatar"></div>
             <div class="conv-info">
-                <div class="conv-name">${escapeHtml(user.full_name || user.username)}</div>
+                <div class="conv-name">${escapeHtml(name)}</div>
                 <div class="conv-bottom"><div class="conv-msg">Tap to start chatting</div></div>
             </div>
             <div class="start-chat-arrow">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </div>
         `;
+        applyAvatar(row.querySelector(".avatar"), name, user.profile_picture || user.profile_image);
         row.onclick = () => {
             const existing = state.chats.find(c => c.other_user?.id === user.id);
             if (existing) {
@@ -293,16 +295,17 @@ function openPendingConversation(user) {
     state.activeUserId = user.id;
     state.activeConversationId = null; // null = pending
     if (window.innerWidth <= 800) el.shell.classList.add("chat-open");
-    el.chatWithTitle.textContent = user.full_name || user.username;
+    const name = user.full_name || user.username || "Unknown";
+    el.chatWithTitle.textContent = name;
     el.onlineStatus.textContent = "";
-    el.chatAvatar.textContent = (user.full_name || user.username).substring(0, 1).toUpperCase();
+    applyAvatar(el.chatAvatar, name, user.profile_picture || user.profile_image);
     el.messagesBox.innerHTML = `
         <div class="welcome-screen">
             <div class="welcome-center">
                 <div class="welcome-icon-wrap" style="background:linear-gradient(135deg,rgba(0,168,132,.2),rgba(0,168,132,.06))">
                     <svg viewBox="0 0 24 24" width="56" height="56" fill="currentColor" style="color:var(--brand-green)"><path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.954 9.954 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.94 7.94 0 0 1-4.061-1.093l-.291-.168-3.023.81.81-3.023-.168-.291A7.94 7.94 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/></svg>
                 </div>
-                <h1 style="font-size:1.2rem;margin-top:16px">${escapeHtml(user.full_name || user.username)}</h1>
+                <h1 style="font-size:1.2rem;margin-top:16px">${escapeHtml(name)}</h1>
                 <p>Send a message to start the conversation!</p>
             </div>
         </div>`;
@@ -344,7 +347,7 @@ function renderChats() {
     filtered.forEach(chat => {
         const user = chat.other_user;
         if (!user) return;
-        const initials = (user.full_name || user.username).substring(0, 1).toUpperCase();
+        const name = user.full_name || user.username || "Unknown";
         let lastMsg = "No messages yet";
         if (chat.last_message) {
             if (chat.last_message.message_type === 'image') lastMsg = "📷 Photo";
@@ -356,10 +359,10 @@ function renderChats() {
         const row = document.createElement("button");
         row.className = `conv-item ${state.activeConversationId === chat.id ? "active" : ""}`;
         row.innerHTML = `
-      <div class="avatar">${escapeHtml(initials)}</div>
+            <div class="avatar"></div>
       <div class="conv-info">
         <div class="conv-top">
-          <div class="conv-name">${escapeHtml(user.full_name || user.username)}</div>
+                    <div class="conv-name">${escapeHtml(name)}</div>
           <div class="conv-time">${escapeHtml(time)}</div>
         </div>
         <div class="conv-bottom">
@@ -368,6 +371,7 @@ function renderChats() {
         </div>
       </div>
     `;
+        applyAvatar(row.querySelector(".avatar"), name, user.profile_picture || user.profile_image);
         row.onclick = () => openConversation(chat.id, user);
         el.usersList.appendChild(row);
     });
@@ -393,10 +397,11 @@ async function openConversation(convId, user, options = {}) {
     }
 
     if (window.innerWidth <= 800) el.shell.classList.add("chat-open");
-    el.chatWithTitle.textContent = user.full_name || user.username;
+    const name = user.full_name || user.username || "Unknown";
+    el.chatWithTitle.textContent = name;
     el.onlineStatus.textContent = "offline";
     el.onlineStatus.classList.remove("online");
-    el.chatAvatar.textContent = (user.full_name || user.username).substring(0, 1).toUpperCase();
+    applyAvatar(el.chatAvatar, name, user.profile_picture || user.profile_image);
 
     if (convId === 0) {
         el.messagesBox.innerHTML = `<div class="welcome-screen"><p>Say hi to ${escapeHtml(user.full_name || user.username)}!</p></div>`;
@@ -874,9 +879,107 @@ function updateMePanel() {
     el.authOverlay.classList.toggle("hidden", loggedIn);
     if (loggedIn) {
         const name = state.me.full_name || state.me.username || "";
-        el.myAvatar.textContent = name.substring(0, 1).toUpperCase();
+        applyAvatar(el.myAvatar, name, state.me.profile_picture || state.me.profile_image);
         if (el.myUsername) el.myUsername.textContent = name;
+        el.myAvatar.title = "Click to update profile picture";
     }
+}
+
+function triggerProfilePicturePicker() {
+    if (!state.me) return;
+    const input = ensureProfilePictureInput();
+    input.click();
+}
+
+function ensureProfilePictureInput() {
+    let input = document.getElementById("profilePicInput");
+    if (input) return input;
+    input = document.createElement("input");
+    input.type = "file";
+    input.id = "profilePicInput";
+    input.accept = "image/*";
+    input.hidden = true;
+    input.addEventListener("change", onProfilePictureSelected);
+    document.body.appendChild(input);
+    return input;
+}
+
+async function onProfilePictureSelected(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("profile_picture", file);
+    try {
+        const updated = await patchMyProfile(formData);
+        state.me = updated?.data || updated;
+        persistAuth();
+        updateMePanel();
+        loadChats();
+        toast("Profile picture updated");
+    } catch (e) {
+        toast(e.message, true);
+    } finally {
+        event.target.value = "";
+    }
+}
+
+async function getMyProfile() {
+    return await apiCallWithFallback(["/api/auth/me/", "/api/auth/me/"]);
+}
+
+async function patchMyProfile(formData) {
+    return await apiCallFormWithFallback(["/api/auth/me/", "/api/auth/me/"], {
+        method: "PATCH",
+        body: formData
+    });
+}
+
+async function apiCallWithFallback(paths, options = {}) {
+    let lastError = null;
+    for (const path of paths) {
+        try {
+            return await apiCall(path, options);
+        } catch (e) {
+            lastError = e;
+            if (!String(e.message || "").includes("Status: 404")) throw e;
+        }
+    }
+    throw lastError || new Error("Request failed");
+}
+
+async function apiCallFormWithFallback(paths, options = {}) {
+    let lastError = null;
+    for (const path of paths) {
+        try {
+            return await apiCallForm(path, options);
+        } catch (e) {
+            lastError = e;
+            if (!String(e.message || "").includes("Status: 404")) throw e;
+        }
+    }
+    throw lastError || new Error("Request failed");
+}
+
+function applyAvatar(targetEl, name, imagePath) {
+    if (!targetEl) return;
+    const label = (name || "?").substring(0, 1).toUpperCase();
+    const imageUrl = resolveMediaUrl(imagePath);
+    if (imageUrl) {
+        targetEl.textContent = "";
+        targetEl.style.backgroundImage = `url('${imageUrl}')`;
+        targetEl.classList.add("has-image");
+        return;
+    }
+    targetEl.style.backgroundImage = "";
+    targetEl.classList.remove("has-image");
+    targetEl.textContent = label;
+}
+
+function resolveMediaUrl(path) {
+    if (!path) return "";
+    if (path.startsWith("http") || path.startsWith("blob:")) return path;
+    const separator = (state.apiBase.endsWith("/") || path.startsWith("/")) ? "" : "/";
+    return `${state.apiBase}${separator}${path}`;
 }
 
 async function apiCall(path, options = {}) {
@@ -891,6 +994,26 @@ async function apiCall(path, options = {}) {
         else if (data.message) msg = data.message;
         else if (typeof data === 'object') msg = JSON.stringify(data);
 
+        throw new Error(`${msg} (Status: ${res.status})`);
+    }
+    return data;
+}
+
+async function apiCallForm(path, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (!options.noAuth && state.access) headers.Authorization = `Bearer ${state.access}`;
+    const res = await fetch(`${state.apiBase}${path}`, {
+        method: options.method || "POST",
+        headers,
+        body: options.body
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        let msg = "Request failed";
+        if (data.detail) msg = data.detail;
+        else if (data.error) msg = data.error;
+        else if (data.message) msg = data.message;
+        else if (typeof data === "object") msg = JSON.stringify(data);
         throw new Error(`${msg} (Status: ${res.status})`);
     }
     return data;
