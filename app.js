@@ -372,7 +372,18 @@ function appendMessage(m) {
     } else {
         contentHtml = `<div class="msg-text">${escapeHtml(m.text || "")}</div>`;
     }
-    const statusIcon = mine ? `<span class="status-icon">${m.status === 'seen' ? '✓✓' : (m.status === 'sending' ? '⏳' : '✓')}</span>` : "";
+    const isSeen = m.status === 'seen';
+    const statusIcon = mine ? `<span class="status-icon" style="${isSeen ? 'color: var(--seen-blue)' : ''}">${isSeen ? '✓✓' : (m.status === 'sending' ? '⏳' : '✓')}</span>` : "";
+    const isEdited = m.is_edited || false;
+
+    let editTriggerHtml = "";
+    if (mine && m.message_type === "text" && !m.optimistic) {
+        editTriggerHtml = `
+        <div class="edit-trigger" title="Edit message">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </div>`;
+    }
+
     row.innerHTML = `
     <div class="react-trigger">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
@@ -385,9 +396,13 @@ function appendMessage(m) {
       <span class="react-emoji" data-emoji="😢">😢</span>
       <span class="react-emoji" data-emoji="🙏">🙏</span>
     </div>
-    ${contentHtml}
+    ${editTriggerHtml}
+    <div class="msg-content-wrapper">
+        ${contentHtml}
+    </div>
     <div class="reactions-list"></div>
     <div class="msg-meta">
+      ${isEdited ? '<span class="edited-label">(edited)</span>' : ''}
       <span>${escapeHtml(time)}</span>
       ${statusIcon}
     </div>
@@ -403,10 +418,82 @@ function appendMessage(m) {
                 picker.classList.remove("show");
             };
         });
+
+        const editBtn = row.querySelector(".edit-trigger");
+        if (editBtn) {
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                enterEditMode(row, m);
+            };
+        }
     }
     renderReactions(row, m.reactions || []);
     el.messagesBox.appendChild(row);
-    if (m.optimistic) row.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (m.optimistic) row.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function enterEditMode(row, m) {
+    const wrapper = row.querySelector(".msg-content-wrapper");
+    const originalContent = wrapper.innerHTML;
+    const originalText = m.text;
+
+    wrapper.innerHTML = `
+        <div class="edit-input-container">
+            <input type="text" class="edit-input" value="${escapeHtml(originalText)}" />
+            <div class="edit-actions">
+                <button class="edit-btn edit-cancel">Cancel</button>
+                <button class="edit-btn edit-save">Save</button>
+            </div>
+        </div>
+    `;
+
+    const input = wrapper.querySelector(".edit-input");
+    input.focus();
+    input.onkeydown = (e) => {
+        if (e.key === "Enter") saveEdit(row, m, input.value, originalContent);
+        if (e.key === "Escape") cancelEdit(wrapper, originalContent);
+    };
+
+    wrapper.querySelector(".edit-cancel").onclick = () => cancelEdit(wrapper, originalContent);
+    wrapper.querySelector(".edit-save").onclick = () => saveEdit(row, m, input.value, originalContent);
+}
+
+function cancelEdit(wrapper, originalContent) {
+    wrapper.innerHTML = originalContent;
+}
+
+async function saveEdit(row, m, newText, originalContent) {
+    const wrapper = row.querySelector(".msg-content-wrapper");
+    newText = newText.trim();
+    if (!newText || newText === m.text) {
+        cancelEdit(wrapper, originalContent);
+        return;
+    }
+
+    try {
+        const data = await apiCall(`/api/conversations/${state.activeConversationId}/messages/${m.id}/edit/`, {
+            method: "PATCH",
+            body: JSON.stringify({ text: newText })
+        });
+        
+        // Update local object
+        m.text = data.text || newText;
+        m.is_edited = true;
+        
+        // Update UI
+        wrapper.innerHTML = `<div class="msg-text">${escapeHtml(m.text)}</div>`;
+        const meta = row.querySelector(".msg-meta");
+        if (!meta.querySelector(".edited-label")) {
+            const label = document.createElement("span");
+            label.className = "edited-label";
+            label.textContent = "(edited)";
+            meta.insertBefore(label, meta.firstChild);
+        }
+        toast("Message updated");
+    } catch (e) {
+        toast(e.message, true);
+        cancelEdit(wrapper, originalContent);
+    }
 }
 
 function renderReactions(msgEl, reactions) {
