@@ -137,17 +137,25 @@ async function onLogin(event) {
 
 async function onRegister(event) {
     event.preventDefault();
-    const payload = {
-        username: document.getElementById("regUsername").value.trim(),
-        email: document.getElementById("regEmail").value.trim(),
-        password: document.getElementById("regPassword").value,
-        password2: document.getElementById("regPassword2").value,
-    };
+    const username = document.getElementById("regUsername").value.trim();
+    const email = document.getElementById("regEmail").value.trim();
+    const password = document.getElementById("regPassword").value;
+    const password2 = document.getElementById("regPassword2").value;
+
+    if (password !== password2) {
+        toast("Passwords do not match", true);
+        return;
+    }
+
+    const payload = { username, email, password, password2 };
+    
     try {
         await apiCall("/api/auth/register/", { method: "POST", body: JSON.stringify(payload), noAuth: true });
         toast("Account created! Please login.");
         toggleAuthForm("login");
-    } catch (e) { toast(e.message, true); }
+    } catch (e) {
+        toast(e.message, true);
+    }
 }
 
 function onLogout() {
@@ -701,7 +709,12 @@ async function apiCall(path, options = {}) {
     const res = await fetch(`${state.apiBase}${path}`, { method: options.method || "GET", headers, body: options.body });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-        const msg = data.detail || data.error || data.message || "Request failed";
+        let msg = "Request failed";
+        if (data.detail) msg = data.detail;
+        else if (data.error) msg = data.error;
+        else if (data.message) msg = data.message;
+        else if (typeof data === 'object') msg = JSON.stringify(data);
+        
         throw new Error(`${msg} (Status: ${res.status})`);
     }
     return data;
