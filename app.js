@@ -169,15 +169,29 @@ async function onRegister(event) {
 
     try {
         await apiCall("/api/auth/register/", { method: "POST", body: JSON.stringify(payload), noAuth: true });
-        toast("Account created! Please login.");
-        toggleAuthForm("login");
+        // Auto-login after successful registration
+        const loginData = await apiCall("/api/auth/login/", {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+            noAuth: true
+        });
+        state.access = loginData?.access || loginData?.tokens?.access || "";
+        state.refresh = loginData?.refresh || loginData?.tokens?.refresh || "";
+        state.me = loginData?.user || loginData?.data || null;
+        persistAuth();
+        updateMePanel();
+        toast(`Welcome, ${username}! 🎉`);
+        await loadChats({ restoreSelection: true });
     } catch (e) {
         let msg = e.message;
-        // Check for common 'already exists' error patterns
-        if (msg.toLowerCase().includes("exists") || msg.toLowerCase().includes("unique") || msg.includes("400")) {
-            if (msg.includes("username") || msg.includes("already")) {
-                msg = "User already exists with this username or email.";
-            }
+        if (msg.toLowerCase().includes("exists") || msg.toLowerCase().includes("unique")) {
+            msg = "User already exists with this username or email.";
+        }
+        // If register succeeded but auto-login failed, fallback to login form
+        if (msg.includes("login") || msg.includes("credentials")) {
+            toast("Account created! Please sign in.");
+            toggleAuthForm("login");
+            return;
         }
         toast(msg, true);
     }
