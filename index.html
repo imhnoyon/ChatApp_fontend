@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="description" content="ChatApp — Modern, fast and secure messaging for everyone." />
   <title>ChatApp — Modern Messenger</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10,63 +11,114 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+
+  <!-- Auth Overlay -->
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-modal">
       <div class="auth-header">
-        <svg viewBox="0 0 24 24" width="64" height="64" fill="#00a884">
-          <path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338c1.47.851 3.179 1.338 5 1.338 5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.477 0-2.866-.399-4.061-1.093l-.291-.168-3.023.81.81-3.023-.168-.291A7.94 7.94 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/>
-        </svg>
-        <h1>ChatApp Web</h1>
-        <p>Secure · Fast · Modern</p>
+        <div class="auth-logo">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.954 9.954 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.94 7.94 0 0 1-4.061-1.093l-.291-.168-3.023.81.81-3.023-.168-.291A7.94 7.94 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/>
+          </svg>
+        </div>
+        <h1>ChatApp</h1>
+        <p>Secure · Fast · Private</p>
       </div>
+
       <div class="auth-tabs">
-        <button id="showLoginBtn" class="tab-btn active">LOGIN</button>
-        <button id="showRegisterBtn" class="tab-btn">REGISTER</button>
+        <button id="showLoginBtn" class="tab-btn active">Sign In</button>
+        <button id="showRegisterBtn" class="tab-btn">Create Account</button>
       </div>
+
+      <!-- Login Form -->
       <form id="loginForm" class="auth-form">
         <div class="form-group">
-          <input id="loginUsername" type="text" placeholder="Username" autocomplete="username" required />
+          <label class="form-label">Username</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            <input id="loginUsername" type="text" placeholder="Enter your username" autocomplete="username" required />
+          </div>
         </div>
         <div class="form-group">
-          <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" required />
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+          </div>
         </div>
-        <button type="submit" class="auth-submit-btn">Log in</button>
+        <button type="submit" class="auth-submit-btn">
+          <span>Sign In</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+        </button>
       </form>
+
+      <!-- Register Form -->
       <form id="registerForm" class="auth-form hidden">
         <div class="form-group">
-          <input id="regUsername" type="text" placeholder="Username" autocomplete="username" required />
+          <label class="form-label">Username</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+            <input id="regUsername" type="text" placeholder="Choose a username" autocomplete="username" required />
+          </div>
         </div>
         <div class="form-group">
-          <input id="regEmail" type="email" placeholder="Email" autocomplete="email" required />
+          <label class="form-label">Email</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            <input id="regEmail" type="email" placeholder="Your email address" autocomplete="email" required />
+          </div>
         </div>
         <div class="form-group">
-          <input id="regPassword" type="password" placeholder="Password" autocomplete="new-password" required />
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            <input id="regPassword" type="password" placeholder="Create a password" autocomplete="new-password" required />
+          </div>
         </div>
         <div class="form-group">
-          <input id="regPassword2" type="password" placeholder="Confirm Password" required />
+          <label class="form-label">Confirm Password</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            <input id="regPassword2" type="password" placeholder="Repeat your password" required />
+          </div>
         </div>
-        <button type="submit" class="auth-submit-btn">Create account</button>
+        <button type="submit" class="auth-submit-btn">
+          <span>Create Account</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
       </form>
     </div>
   </div>
 
+  <!-- App Shell -->
   <main class="app-shell">
+
+    <!-- Sidebar -->
     <div class="sidebar">
       <header class="header">
-        <div id="myAvatar" class="avatar"></div>
+        <div class="header-left">
+          <div id="myAvatar" class="avatar my-avatar" title="My Profile"></div>
+          <span id="myUsername" class="my-username"></span>
+        </div>
         <div class="header-actions">
-          <button class="action-icon" aria-label="Status"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 20.47L12 20.47c3.15 0 6.13-1.25 8.36-3.48l1.41 1.41C19.1 21.07 15.65 22.47 12 22.47c-3.65 0-7.1-1.39-9.77-4.06l1.41-1.41C5.87 19.23 8.85 20.47 12 20.47z M12 1.53c3.65 0 7.1 1.39 9.77 4.06l-1.41 1.41C18.13 4.77 15.15 3.53 12 3.53s-6.13 1.25-8.36 3.48l-1.41-1.41C4.9 2.93 8.35 1.53 12 1.53z M20.47 12c0-2.34-1-4.45-2.61-5.94l1.41-1.41C21.19 6.36 22.47 9.03 22.47 12s-1.28 5.64-3.2 7.35l-1.41-1.41C19.47 16.45 20.47 14.34 20.47 12z M3.53 12c0 2.34 1 4.45 2.61 5.94L4.73 19.35C2.81 17.64 1.53 14.97 1.53 12s1.28-5.64 3.2-7.35l1.41 1.41C4.53 7.55 3.53 9.66 3.53 12z"/></svg></button>
-          <button id="newChatBtn" class="action-icon" aria-label="New chat"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
-          <button id="themeToggle" class="action-icon" aria-label="Toggle Theme"><svg id="themeIcon" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"></svg></button><button id="logoutBtn" class="action-icon logout" aria-label="Logout"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16 13v-2H7V9l-5 3 5 3v-2h9zM20 3H9c-1.1 0-2 .9-2 2v4h2V5h11v14H9v-4H7v4c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></button>
+          <button id="newChatBtn" class="action-icon" aria-label="New chat" title="Start new chat">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          </button>
+          <button id="themeToggle" class="action-icon" aria-label="Toggle Theme" title="Toggle theme">
+            <svg id="themeIcon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor"></svg>
+          </button>
+          <button id="logoutBtn" class="action-icon logout" aria-label="Logout" title="Logout">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          </button>
         </div>
       </header>
 
       <div class="search-panel">
         <div class="search-container">
-          <svg class="search-icon-svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <svg class="search-icon-svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
           </svg>
-          <input type="text" id="userSearch" class="search-input" placeholder="Search or start new chat" />
+          <input type="text" id="userSearch" class="search-input" placeholder="Search conversations…" />
         </div>
       </div>
 
@@ -75,35 +127,45 @@
       </div>
     </div>
 
+    <!-- Chat Area -->
     <div id="chatSection" class="chat-area mobile-hidden">
       <header class="header chat-header">
         <div class="chat-info">
-          <button id="backBtn" class="back-btn" aria-label="Back"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></button>
-          <div id="chatAvatar" class="avatar"></div>
+          <button id="backBtn" class="back-btn" aria-label="Back">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          </button>
+          <div id="chatAvatar" class="avatar chat-avatar"></div>
           <div class="user-meta">
             <h2 id="chatWithTitle">Select a chat</h2>
             <p id="onlineStatus" class="status-text"></p>
           </div>
         </div>
         <div class="header-actions">
-          <button class="action-icon" aria-label="Search"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></button>
-          <button class="action-icon" aria-label="Menu"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 4.001A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 4.001A2 2 0 0 0 12 15z"/></svg></button>
+          <button class="action-icon" aria-label="Voice call" title="Voice call">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+          </button>
+          <button class="action-icon" aria-label="Video call" title="Video call">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+          </button>
+          <button class="action-icon" aria-label="Menu" title="More options">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 4.001A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 4.001A2 2 0 0 0 12 15z"/></svg>
+          </button>
         </div>
       </header>
 
       <div id="messagesBox" class="messages-container">
         <div class="welcome-screen">
           <div class="welcome-center">
-            <div class="welcome-img">
-              <svg viewBox="0 0 24 24" width="120" height="120" fill="currentColor">
-                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338c1.47.851 3.179 1.338 5 1.338 5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.477 0-2.866-.399-4.061-1.093l-.291-.168-3.023.81.81-3.023-.168-.291A7.94 7.94 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/>
+            <div class="welcome-icon-wrap">
+              <svg viewBox="0 0 24 24" width="72" height="72" fill="currentColor">
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.954 9.954 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.94 7.94 0 0 1-4.061-1.093l-.291-.168-3.023.81.81-3.023-.168-.291A7.94 7.94 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/>
               </svg>
             </div>
             <h1>ChatApp Web</h1>
-            <p>End‑to‑end encrypted messages. Your conversations stay private.</p>
+            <p>Send and receive messages from your browser. Select a conversation or start a new one.</p>
             <div class="enc-footer">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C9.243 2 7 4.243 7 7v3H6c-1.103 0-2 .897-2 2v8c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-8c0-1.103-.897-2-2-2h-1V7c0-2.757-2.243-5-5-5zm3 8H9V7c0-1.654 1.346-3 3-3s3 1.346 3 3v3z"/></svg>
-              Secured by Signal protocol
+              End-to-end encrypted
             </div>
           </div>
         </div>
@@ -113,21 +175,36 @@
 
       <footer class="footer">
         <div class="attachment-wrap">
-          <button id="plusBtn" type="button" class="footer-icon" aria-label="Attach"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
+          <button id="plusBtn" type="button" class="footer-icon" aria-label="Attach" title="Attach file">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+          </button>
           <div id="attachMenu" class="attach-menu">
-            <label for="imgInput" class="menu-item"><svg viewBox="0 0 24 24" width="20" height="20" fill="#00a884"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/></svg> Image</label>
-            <button id="voiceBtn" type="button" class="menu-item"><svg viewBox="0 0 24 24" width="20" height="20" fill="#f44336"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.33 14.45 16 12 16s-4.52-1.67-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg> Voice</button>
+            <label for="imgInput" class="menu-item">
+              <div class="menu-icon-wrap img-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/></svg>
+              </div>
+              Photo
+            </label>
+            <button id="voiceBtn" type="button" class="menu-item">
+              <div class="menu-icon-wrap voice-icon">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.33 14.45 16 12 16s-4.52-1.67-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+              </div>
+              Voice
+            </button>
           </div>
           <input type="file" id="imgInput" accept="image/*" hidden />
         </div>
         <div class="input-container">
           <form id="messageForm">
-            <input type="text" id="messageInput" autocomplete="off" placeholder="Type a message" />
+            <input type="text" id="messageInput" autocomplete="off" placeholder="Type a message…" />
           </form>
         </div>
-        <button type="submit" form="messageForm" class="footer-icon send-btn" aria-label="Send"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+        <button type="submit" form="messageForm" class="send-btn" aria-label="Send">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
       </footer>
     </div>
+
   </main>
 
   <div id="toastWrap" class="toast-container"></div>

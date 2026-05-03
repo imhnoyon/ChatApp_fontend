@@ -21,6 +21,7 @@ const state = {
     reconnectAttempts: 0,
     isRecordingRequested: false,
     theme: localStorage.getItem("chat_theme") || "dark",
+    pendingMessages: [], // messages queued before conversation is ready
 };
 
 const el = {
@@ -51,6 +52,7 @@ const el = {
     themeToggle: document.getElementById("themeToggle"),
     themeIcon: document.getElementById("themeIcon"),
     newChatBtn: document.getElementById("newChatBtn"),
+    myUsername: document.getElementById("myUsername"),
 };
 
 init();
@@ -81,7 +83,21 @@ function bindEvents() {
     el.voiceBtn.addEventListener("touchend", (e) => { e.preventDefault(); stopVoiceRecording(); });
     el.userSearch.addEventListener("input", (e) => { state.searchTerm = e.target.value.toLowerCase(); renderChats(); });
     el.themeToggle.addEventListener("click", toggleTheme);
-    if (el.newChatBtn) el.newChatBtn.addEventListener("click", () => loadAllUsers());
+    if (el.newChatBtn) el.newChatBtn.addEventListener("click", toggleNewChatPanel);
+}
+
+function toggleNewChatPanel() {
+    const isShowingUsers = el.usersList.dataset.mode === "users";
+    if (isShowingUsers) {
+        // Go back to chats list
+        el.usersList.dataset.mode = "chats";
+        el.newChatBtn.style.color = "";
+        renderChats();
+    } else {
+        // Show all users
+        el.newChatBtn.style.color = "var(--brand-green)";
+        loadAllUsers();
+    }
 }
 
 function toggleAuthForm(mode) {
@@ -150,7 +166,7 @@ async function onRegister(event) {
     }
 
     const payload = { username, email, password, password2 };
-    
+
     try {
         await apiCall("/api/auth/register/", { method: "POST", body: JSON.stringify(payload), noAuth: true });
         toast("Account created! Please login.");
@@ -199,19 +215,34 @@ async function loadChats(options = {}) {
 async function loadAllUsers() {
     if (!state.access) return;
     try {
-        const data = await apiCall("/api/auth/users/"); // Assuming this is the endpoint
+        const data = await apiCall("/api/users/"); // Assuming this is the endpoint
         const users = Array.isArray(data) ? data : (data?.data || []);
         renderAllUsers(users);
-    } catch (e) { 
+    } catch (e) {
         // Fallback to searching if users/ fails
         toast("Could not load users list. Use search to find people.", true);
     }
 }
 
 function renderAllUsers(users) {
-    el.usersList.innerHTML = `<div class="list-label">All Users</div>`;
-    users.forEach(user => {
-        if (user.id === state.me?.id) return;
+    el.usersList.dataset.mode = "users";
+    el.usersList.innerHTML = `
+        <div class="users-list-header">
+            <span class="list-label">All Users</span>
+            <button class="close-users-btn" id="closeUsersBtn" title="Back to chats">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                Back
+            </button>
+        </div>
+    `;
+    document.getElementById("closeUsersBtn")?.addEventListener("click", toggleNewChatPanel);
+
+    const filtered = users.filter(u => u.id !== state.me?.id);
+    if (filtered.length === 0) {
+        el.usersList.innerHTML += `<div class="empty-list">No other users found</div>`;
+        return;
+    }
+    filtered.forEach(user => {
         const initials = (user.full_name || user.username).substring(0, 1).toUpperCase();
         const row = document.createElement("button");
         row.className = "conv-item";
@@ -219,17 +250,71 @@ function renderAllUsers(users) {
             <div class="avatar">${escapeHtml(initials)}</div>
             <div class="conv-info">
                 <div class="conv-name">${escapeHtml(user.full_name || user.username)}</div>
-                <div class="conv-bottom"><div class="conv-msg">Click to start chat</div></div>
+                <div class="conv-bottom"><div class="conv-msg">Tap to start chatting</div></div>
+            </div>
+            <div class="start-chat-arrow">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </div>
         `;
         row.onclick = () => {
-            // Find if conversation exists
             const existing = state.chats.find(c => c.other_user?.id === user.id);
-            if (existing) openConversation(existing.id, user);
-            else openConversation(0, user, { isNew: true });
+            if (existing) {
+                toggleNewChatPanel();
+                openConversation(existing.id, user);
+            } else {
+                // Open a pending chat — first message will create the conversation
+                toggleNewChatPanel();
+                openPendingConversation(user);
+            }
         };
         el.usersList.appendChild(row);
     });
+}
+
+function openPendingConversation(user) {
+    state.activeUserId = user.id;
+    state.activeConversationId = null; // null = pending
+    if (window.innerWidth <= 800) el.shell.classList.add("chat-open");
+    el.chatWithTitle.textContent = user.full_name || user.username;
+    el.onlineStatus.textContent = "";
+    el.chatAvatar.textContent = (user.full_name || user.username).substring(0, 1).toUpperCase();
+    el.messagesBox.innerHTML = `
+        <div class="welcome-screen">
+            <div class="welcome-center">
+                <div class="welcome-icon-wrap" style="background:linear-gradient(135deg,rgba(0,168,132,.2),rgba(0,168,132,.06))">
+                    <svg viewBox="0 0 24 24" width="56" height="56" fill="currentColor" style="color:var(--brand-green)"><path d="M12 2C6.477 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.954 9.954 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.94 7.94 0 0 1-4.061-1.093l-.291-.168-3.023.81.81-3.023-.168-.291A7.94 7.94 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/></svg>
+                </div>
+                <h1 style="font-size:1.2rem;margin-top:16px">${escapeHtml(user.full_name || user.username)}</h1>
+                <p>Send a message to start the conversation!</p>
+            </div>
+        </div>`;
+    // Connect to a new WS — backend should auto-create conversation on first message
+    // We need to get or create a conversation first via REST
+    getOrCreateConversation(user.id);
+}
+
+async function getOrCreateConversation(userId) {
+    try {
+        const data = await apiCall("/api/conversations/", {
+            method: "POST",
+            body: JSON.stringify({ user_id: userId })
+        });
+        const convId = data.id || data.conversation_id;
+        if (convId) {
+            state.activeConversationId = convId;
+            localStorage.setItem("chat_conv_id", String(convId));
+            connectSocketWithCallback(convId, () => {
+                state.pendingMessages.forEach(text => {
+                    state.socket.send(jsonStr({ action: "send_message", text }));
+                });
+                state.pendingMessages = [];
+                loadChats();
+            });
+        }
+    } catch (e) {
+        toast("Could not create conversation: " + e.message, true);
+        state.activeConversationId = -1;
+    }
 }
 
 function renderChats() {
@@ -280,7 +365,7 @@ async function openConversation(convId, user, options = {}) {
     state.activeConversationId = convId;
     localStorage.setItem("chat_selected_user_id", String(user.id));
     localStorage.setItem("chat_conv_id", String(convId));
-    
+
     if (convId !== 0) {
         const chatIdx = state.chats.findIndex(c => c.id === convId);
         if (chatIdx !== -1) {
@@ -288,13 +373,13 @@ async function openConversation(convId, user, options = {}) {
             renderChats();
         }
     }
-    
+
     if (window.innerWidth <= 800) el.shell.classList.add("chat-open");
     el.chatWithTitle.textContent = user.full_name || user.username;
     el.onlineStatus.textContent = "offline";
     el.onlineStatus.classList.remove("online");
     el.chatAvatar.textContent = (user.full_name || user.username).substring(0, 1).toUpperCase();
-    
+
     if (convId === 0) {
         el.messagesBox.innerHTML = `<div class="welcome-screen"><p>Say hi to ${escapeHtml(user.full_name || user.username)}!</p></div>`;
     } else {
@@ -314,9 +399,14 @@ async function loadMessages(convId) {
 }
 
 function connectSocket(convId) {
+    connectSocketWithCallback(convId, null);
+}
+
+function connectSocketWithCallback(convId, onOpenCallback) {
     if (!state.access) return;
     if (state.socket?.readyState === WebSocket.OPEN && state.socketConvId === convId) {
         state.socket.send(jsonStr({ action: "mark_read" }));
+        if (onOpenCallback) onOpenCallback();
         return;
     }
     if (state.socket) closeSocket(true);
@@ -328,6 +418,7 @@ function connectSocket(convId) {
         ws.send(jsonStr({ action: "mark_read" }));
         ws.send(jsonStr({ action: "presence_ping" }));
         loadChats();
+        if (onOpenCallback) onOpenCallback();
     };
     ws.onmessage = (e) => handleSocketPayload(JSON.parse(e.data));
     ws.onclose = () => {
@@ -388,37 +479,27 @@ async function onSendMessage(e) {
     e.preventDefault();
     const text = el.messageInput.value.trim();
     if (!text) return;
+    el.messageInput.value = "";
 
-    // If it's a new conversation (no ID yet)
-    if (state.activeConversationId === 0) {
-        try {
-            const res = await apiCall(`/api/conversations/start/`, {
-                method: "POST",
-                body: JSON.stringify({ user_id: state.activeUserId, text: text })
-            });
-            el.messageInput.value = "";
-            openConversation(res.id || res.conversation_id, { id: state.activeUserId, username: el.chatWithTitle.textContent });
-            loadChats();
-        } catch (err) {
-            toast("Could not start conversation", true);
-        }
+    // Show message immediately in UI regardless of connection state
+    const tempId = Date.now();
+    appendMessage({
+        id: tempId, sender_id: state.me.id, text,
+        created_at: new Date().toISOString(),
+        status: "sending", optimistic: true, message_type: "text"
+    });
+    scrollToBottom();
+
+    // If conversation not ready yet, queue for sending when socket opens
+    if (state.activeConversationId === null || state.activeConversationId === -1 || state.activeConversationId === 0) {
+        state.pendingMessages.push(text);
         return;
     }
 
-    if (state.socket?.readyState !== WebSocket.OPEN) return;
-    const optimisticMsg = {
-        id: Date.now(),
-        sender_id: state.me.id,
-        text,
-        created_at: new Date().toISOString(),
-        status: "sending",
-        optimistic: true,
-        message_type: "text"
-    };
-    appendMessage(optimisticMsg);
-    scrollToBottom();
-    state.socket.send(jsonStr({ action: "send_message", text }));
-    el.messageInput.value = "";
+    // Send via socket
+    if (state.socket?.readyState === WebSocket.OPEN) {
+        state.socket.send(jsonStr({ action: "send_message", text }));
+    }
 }
 
 function onTypingInput() {
@@ -773,7 +854,11 @@ function renderEmptyChat() {
 function updateMePanel() {
     const loggedIn = !!state.me;
     el.authOverlay.classList.toggle("hidden", loggedIn);
-    if (loggedIn) el.myAvatar.textContent = (state.me.full_name || state.me.username).substring(0, 1).toUpperCase();
+    if (loggedIn) {
+        const name = state.me.full_name || state.me.username || "";
+        el.myAvatar.textContent = name.substring(0, 1).toUpperCase();
+        if (el.myUsername) el.myUsername.textContent = name;
+    }
 }
 
 async function apiCall(path, options = {}) {
@@ -787,7 +872,7 @@ async function apiCall(path, options = {}) {
         else if (data.error) msg = data.error;
         else if (data.message) msg = data.message;
         else if (typeof data === 'object') msg = JSON.stringify(data);
-        
+
         throw new Error(`${msg} (Status: ${res.status})`);
     }
     return data;
@@ -799,3 +884,7 @@ function scrollToBottom() { el.messagesBox.scrollTop = el.messagesBox.scrollHeig
 function toast(t, isError = false) { const div = document.createElement("div"); div.className = `toast${isError ? " error" : ""}`; div.textContent = t; el.toastWrap.appendChild(div); setTimeout(() => div.remove(), 3000); }
 function escapeHtml(str) { return String(str).replace(/[&<>]/g, function (m) { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 function jsonStr(obj) { return JSON.stringify(obj); }
+
+
+
+
